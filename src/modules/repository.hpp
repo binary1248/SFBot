@@ -1,9 +1,9 @@
 #pragma once
 
-#include <function.hpp>
+#include <module.hpp>
 #include <chrono>
 
-class repository : public function {
+class repository : public module {
 public:
 	repository( const std::string& uri );
 

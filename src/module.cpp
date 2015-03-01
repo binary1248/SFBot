@@ -1,4 +1,4 @@
-#include <function.hpp>
+#include <module.hpp>
 #include <SFNUL.hpp>
 #include <tuple>
 
@@ -14,8 +14,8 @@ std::vector<std::tuple<sfn::HTTPRequest, std::string, unsigned short, std::promi
 std::unique_ptr<impl> instance;
 int ref_count = 0;
 
-std::vector<std::function<std::unique_ptr<function>(void)>> function_constructors;
-std::vector<std::unique_ptr<function>>* functions;
+std::vector<std::function<std::unique_ptr<module>(void)>> function_constructors;
+std::vector<std::unique_ptr<module>>* functions;
 
 std::function<void(const std::string&)> send_channel_message_handler;
 std::function<void(const std::string&, const std::string&)> send_private_message_handler;
@@ -24,7 +24,7 @@ std::vector<std::string> command_list;
 
 }
 
-function::function() {
+module::module() {
 	if( ref_count < 1 ) {
 		instance.reset( new impl );
 	}
@@ -32,7 +32,7 @@ function::function() {
 	++ref_count;
 }
 
-function::~function() {
+module::~module() {
 	--ref_count;
 
 	if( ref_count < 1 ) {
@@ -40,8 +40,8 @@ function::~function() {
 	}
 }
 
-std::unique_ptr<std::vector<std::unique_ptr<function>>> function::instantiate_all() {
-	auto unique_functions = std::unique_ptr<std::vector<std::unique_ptr<function>>>( new std::vector<std::unique_ptr<function>> );
+std::unique_ptr<std::vector<std::unique_ptr<module>>> module::instantiate_all() {
+	auto unique_functions = std::unique_ptr<std::vector<std::unique_ptr<module>>>( new std::vector<std::unique_ptr<module>> );
 
 	for( const auto& f : function_constructors ) {
 		unique_functions->emplace_back( f() );
@@ -51,7 +51,7 @@ std::unique_ptr<std::vector<std::unique_ptr<function>>> function::instantiate_al
 	return unique_functions;
 }
 
-void function::receive_channel_message( const std::string& user, const std::string& message ) {
+void module::receive_channel_message( const std::string& user, const std::string& message ) {
 	for( auto& f : *functions ) {
 		if( f->handle_channel_message( user, message ) ) {
 			return;
@@ -59,7 +59,7 @@ void function::receive_channel_message( const std::string& user, const std::stri
 	}
 }
 
-void function::receive_private_message( const std::string& user, const std::string& message ) {
+void module::receive_private_message( const std::string& user, const std::string& message ) {
 	for( auto& f : *functions ) {
 		if( f->handle_private_message( user, message ) ) {
 			return;
@@ -67,19 +67,19 @@ void function::receive_private_message( const std::string& user, const std::stri
 	}
 }
 
-void function::send_channel_message( const std::string& message ) {
+void module::send_channel_message( const std::string& message ) {
 	if( send_channel_message_handler ) {
 		send_channel_message_handler( message );
 	}
 }
 
-void function::send_private_message( const std::string& user, const std::string& message ) {
+void module::send_private_message( const std::string& user, const std::string& message ) {
 	if( send_private_message_handler ) {
 		send_private_message_handler( user, message );
 	}
 }
 
-void function::tick( const std::chrono::milliseconds& elapsed ) {
+void module::tick( const std::chrono::milliseconds& elapsed ) {
 	if( instance ) {
 		instance->http_client.Update();
 
@@ -107,19 +107,19 @@ void function::tick( const std::chrono::milliseconds& elapsed ) {
 	}
 }
 
-void function::register_send_channel_message_handler( std::function<void(const std::string&)> handler ) {
+void module::register_send_channel_message_handler( std::function<void(const std::string&)> handler ) {
 	send_channel_message_handler = handler;
 }
 
-void function::register_send_private_message_handler( std::function<void(const std::string&, const std::string&)> handler ) {
+void module::register_send_private_message_handler( std::function<void(const std::string&, const std::string&)> handler ) {
 	send_private_message_handler = handler;
 }
 
-void function::http_add_certificate( const std::string& host, const std::string& certificate, const std::string& common_name ) {
+void module::http_add_certificate( const std::string& host, const std::string& certificate, const std::string& common_name ) {
 	instance->http_client.LoadCertificate( host, sfn::TlsCertificate::Create( certificate ), common_name );
 }
 
-std::future<std::string> function::http_get( const std::string& host, unsigned short port, const std::string& uri, bool secure ) {
+std::future<std::string> module::http_get( const std::string& host, unsigned short port, const std::string& uri, bool secure ) {
 	sfn::HTTPRequest request{};
 
 	request.SetMethod( "GET" );
@@ -137,26 +137,26 @@ std::future<std::string> function::http_get( const std::string& host, unsigned s
 	return future;
 }
 
-bool function::handle_channel_message( const std::string& /*user*/, const std::string& /*message*/ ) {
+bool module::handle_channel_message( const std::string& /*user*/, const std::string& /*message*/ ) {
 	return false;
 }
 
-bool function::handle_private_message( const std::string& /*user*/, const std::string& /*message*/ ) {
+bool module::handle_private_message( const std::string& /*user*/, const std::string& /*message*/ ) {
 	return false;
 }
 
-void function::handle_tick( const std::chrono::milliseconds& /*elapsed*/ ) {
+void module::handle_tick( const std::chrono::milliseconds& /*elapsed*/ ) {
 }
 
-void function::add_function_constructor( std::function<std::unique_ptr<function>(void)> constructor ) {
+void module::add_function_constructor( std::function<std::unique_ptr<module>(void)> constructor ) {
 	function_constructors.push_back( std::move( constructor ) );
 }
 
-void function::add_commands( std::initializer_list<std::string> commands ) {
+void module::add_commands( std::initializer_list<std::string> commands ) {
 	command_list.insert( std::end( command_list ), std::begin( commands ), std::end( commands ) );
 	std::sort( std::begin( command_list ), std::end( command_list ) );
 }
 
-const std::vector<std::string>& function::get_commands() {
+const std::vector<std::string>& module::get_commands() {
 	return command_list;
 }

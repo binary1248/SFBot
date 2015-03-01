@@ -1,4 +1,4 @@
-#include <function.hpp>
+#include <module.hpp>
 #include <SFNUL.hpp>
 #include <algorithm>
 #include <iostream>
@@ -95,26 +95,26 @@ int main()
 		}
 	}
 
-	function::register_send_channel_message_handler( [&]( const std::string& message ) {
+	module::register_send_channel_message_handler( [&]( const std::string& message ) {
 		auto full_line = "PRIVMSG #" + channel_name + " :" + message + "\r\n";
 		irc_socket->Send( full_line.c_str(), full_line.length() );
 		std::cout << "Sent message to server: " << full_line;
 	} );
 
-	function::register_send_private_message_handler( [&]( const std::string& user, const std::string& message ) {
+	module::register_send_private_message_handler( [&]( const std::string& user, const std::string& message ) {
 		auto full_line = "PRIVMSG " + user + " :" + message + "\r\n";
 		irc_socket->Send( full_line.c_str(), full_line.length() );
 		std::cout << "Sent message to server: " << full_line;
 	} );
 
 	{
-		auto functions = function::instantiate_all();
+		auto functions = module::instantiate_all();
 		auto previous_tick = std::chrono::system_clock::now();
 
-		function::add_commands( { "!version", "!shutdown", "!commands" } );
+		module::add_commands( { "!version", "!shutdown", "!commands" } );
 
 		while( !irc_socket->RemoteHasShutdown() ) {
-			function::tick( std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::system_clock::now() - previous_tick ) );
+			module::tick( std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::system_clock::now() - previous_tick ) );
 			previous_tick = std::chrono::system_clock::now();
 
 			std::array<char, 1024> recv_data;
@@ -176,16 +176,16 @@ int main()
 									if( target == ( "#" + channel_name ) ) {
 										// Channel message
 										if( contains( line, "!version" ) ) {
-											function::send_channel_message( version_string );
+											module::send_channel_message( version_string );
 										}
 										else if( contains( line, "!shutdown" ) && ( std::find( std::begin( operators ), std::end( operators ), username ) != std::end( operators ) ) ) {
-											function::send_channel_message( username + " requested shutdown, shutting down..." );
+											module::send_channel_message( username + " requested shutdown, shutting down..." );
 											break;
 										}
 										else if( contains( line, "!commands" ) ) {
 											std::string commands;
 
-											for( const auto& c : function::get_commands() ) {
+											for( const auto& c : module::get_commands() ) {
 												commands += c + ", ";
 											}
 
@@ -193,25 +193,25 @@ int main()
 												commands.erase( commands.length() - 2 );
 											}
 
-											function::send_channel_message( commands );
+											module::send_channel_message( commands );
 										}
 										else {
-											function::receive_channel_message( username, line );
+											module::receive_channel_message( username, line );
 										}
 									}
 									else if( target == bot_name ) {
 										// Private message
 										if( contains( line, "!version" ) ) {
-											function::send_private_message( username, version_string );
+											module::send_private_message( username, version_string );
 										}
 										else if( contains( line, "!shutdown" ) && ( std::find( std::begin( operators ), std::end( operators ), username ) != std::end( operators ) ) ) {
-											function::send_private_message( username, username + " requested shutdown, shutting down..." );
+											module::send_private_message( username, username + " requested shutdown, shutting down..." );
 											break;
 										}
 										else if( contains( line, "!commands" ) ) {
 											std::string commands;
 
-											for( const auto& c : function::get_commands() ) {
+											for( const auto& c : module::get_commands() ) {
 												commands += c + ", ";
 											}
 
@@ -219,10 +219,10 @@ int main()
 												commands.erase( commands.length() - 2 );
 											}
 
-											function::send_private_message( username, commands );
+											module::send_private_message( username, commands );
 										}
 										else {
-											function::receive_private_message( username, line );
+											module::receive_private_message( username, line );
 										}
 									}
 								}

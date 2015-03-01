@@ -22,20 +22,20 @@ if( APPLE )
 endif()
 
 set( SRC_DIR "${PROJECT_SOURCE_DIR}/src" )
-set( FUNCTIONS_DIR "${SRC_DIR}/functions" )
+set( MODULES_DIR "${SRC_DIR}/modules" )
 
-include( "${FUNCTIONS_DIR}/CMakeLists.txt" )
+include( "${MODULES_DIR}/CMakeLists.txt" )
 
 set(
 	SOURCES
-	${FUNCTIONS}
-	"${SRC_DIR}/function.cpp"
-	"${SRC_DIR}/function.hpp"
+	${MODULES}
+	"${SRC_DIR}/module.cpp"
+	"${SRC_DIR}/module.hpp"
 	"${SRC_DIR}/main.cpp"
 )
 
 include_directories( ${SRC_DIR} )
-include_directories( ${FUNCTIONS_DIR} )
+include_directories( ${MODULES_DIR} )
 include_directories( SYSTEM ${SFNUL_INCLUDE_DIR} )
 
 if( APPLE )

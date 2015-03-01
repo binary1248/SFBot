@@ -1,9 +1,0 @@
-set(
-	FUNCTIONS
-	"${FUNCTIONS_DIR}/forum_help.cpp"
-	"${FUNCTIONS_DIR}/forum_help.hpp"
-	"${FUNCTIONS_DIR}/repository.cpp"
-	"${FUNCTIONS_DIR}/repository.hpp"
-	"${FUNCTIONS_DIR}/social.cpp"
-	"${FUNCTIONS_DIR}/social.hpp"
-)

@@ -7,14 +7,14 @@
 #include <memory>
 
 template<typename T>
-class register_function;
+class register_module;
 
-class function {
+class module {
 public:
-	function();
-	virtual ~function();
+	module();
+	virtual ~module();
 
-	static std::unique_ptr<std::vector<std::unique_ptr<function>>> instantiate_all();
+	static std::unique_ptr<std::vector<std::unique_ptr<module>>> instantiate_all();
 
 	static void receive_channel_message( const std::string& user, const std::string& message );
 	static void receive_private_message( const std::string& user, const std::string& message );
@@ -37,28 +37,28 @@ private:
 	virtual bool handle_private_message( const std::string& user, const std::string& message );
 	virtual void handle_tick( const std::chrono::milliseconds& elapsed );
 
-	static void add_function_constructor( std::function<std::unique_ptr<function>(void)> constructor );
+	static void add_function_constructor( std::function<std::unique_ptr<module>(void)> constructor );
 
 	template<typename T>
-	friend class register_function;
+	friend class register_module;
 };
 
 template<typename T>
-class register_function {
+class register_module {
 public:
 	template<typename... Args>
-	register_function( Args&&... args ) {
-		function::add_function_constructor( [args...](){ return std::unique_ptr<function>( new T( std::forward<Args>( args )... ) ); } );
+	register_module( Args&&... args ) {
+		module::add_function_constructor( [args...](){ return std::unique_ptr<module>( new T( std::forward<Args>( args )... ) ); } );
 	}
 
-	register_function( std::initializer_list<std::string> commands ) {
-		function::add_function_constructor( [](){ return std::unique_ptr<function>( new T ); } );
-		function::add_commands( commands );
+	register_module( std::initializer_list<std::string> commands ) {
+		module::add_function_constructor( [](){ return std::unique_ptr<module>( new T ); } );
+		module::add_commands( commands );
 	}
 
 	template<typename... Args>
-	register_function( std::initializer_list<std::string> commands, Args&&... args ) {
-		function::add_function_constructor( [args...](){ return std::unique_ptr<function>( new T( std::forward<Args>( args )... ) ); } );
-		function::add_commands( commands );
+	register_module( std::initializer_list<std::string> commands, Args&&... args ) {
+		module::add_function_constructor( [args...](){ return std::unique_ptr<module>( new T( std::forward<Args>( args )... ) ); } );
+		module::add_commands( commands );
 	}
 };
