@@ -11,6 +11,7 @@ namespace {
 register_function<repository> register_forum_help_sfml( { "!repo", "!repos" }, "LaurentGomila/SFML" );
 register_function<repository> register_forum_help_sfgui( "TankOs/SFGUI" );
 register_function<repository> register_forum_help_sfnul( "binary1248/SFNUL" );
+register_function<repository> register_forum_help_sfbot( "binary1248/SFBot" );
 const static auto poll_interval = std::chrono::seconds( 30 );
 ////////////////////////////////////////////////////////////////////////////////
 // Settings
