@@ -42,13 +42,13 @@ const std::string& get_secret() {
 		std::ifstream secret_file( "secret" );
 
 		if( !secret_file.good() ) {
-			std::cerr << "Could not open secret file" << std::endl;
+			std::cerr << "Could not open secret file" << "\n";
 			return secret;
 		}
 
 		secret_file >> secret;
 		if( secret_file.fail() ) {
-			std::cerr << "Could not read secret file" << std::endl;
+			std::cerr << "Could not read secret file" << "\n";
 			secret = "";
 			return secret;
 		}
@@ -157,7 +157,7 @@ void repository::handle_tick( const std::chrono::milliseconds& elapsed ) {
 
 	if( m_time_to_query < std::chrono::milliseconds( 0 ) ) {
 		if( m_current_query.valid() ) {
-			std::cerr << "repository request still not complete" << std::endl;
+			std::cerr << "repository request still not complete" << "\n";
 			return;
 		}
 

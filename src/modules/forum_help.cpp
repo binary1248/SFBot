@@ -87,7 +87,7 @@ void forum_help::handle_tick( const std::chrono::milliseconds& elapsed ) {
 
 	if( m_time_to_query < std::chrono::milliseconds( 0 ) ) {
 		if( m_current_query.valid() ) {
-			std::cerr << "forum_help request still not complete" << std::endl;
+			std::cerr << "forum_help request still not complete" << "\n";
 			return;
 		}
 

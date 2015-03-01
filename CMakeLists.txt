@@ -29,6 +29,8 @@ include( "${MODULES_DIR}/CMakeLists.txt" )
 set(
 	SOURCES
 	${MODULES}
+	"${SRC_DIR}/core_module.cpp"
+	"${SRC_DIR}/core_module.hpp"
 	"${SRC_DIR}/module.cpp"
 	"${SRC_DIR}/module.hpp"
 	"${SRC_DIR}/main.cpp"

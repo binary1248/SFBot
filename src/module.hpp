@@ -48,7 +48,7 @@ class register_module {
 public:
 	template<typename... Args>
 	register_module( Args&&... args ) {
-		module::add_function_constructor( [args...](){ return std::unique_ptr<module>( new T( std::forward<Args>( args )... ) ); } );
+		module::add_function_constructor( [&](){ return std::unique_ptr<module>( new T( std::forward<Args>( args )... ) ); } );
 	}
 
 	register_module( std::initializer_list<std::string> commands ) {
@@ -58,7 +58,7 @@ public:
 
 	template<typename... Args>
 	register_module( std::initializer_list<std::string> commands, Args&&... args ) {
-		module::add_function_constructor( [args...](){ return std::unique_ptr<module>( new T( std::forward<Args>( args )... ) ); } );
+		module::add_function_constructor( [&](){ return std::unique_ptr<module>( new T( std::forward<Args>( args )... ) ); } );
 		module::add_commands( commands );
 	}
 };
