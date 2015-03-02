@@ -32,6 +32,9 @@ protected:
 	void http_add_certificate( const std::string& host, const std::string& certificate, const std::string& common_name );
 	std::future<std::string> http_get( const std::string& host, unsigned short port, const std::string& uri, bool secure = false );
 
+	static bool contains( std::string haystack, const std::string& needle );
+	static std::string url_encode( const std::string& str );
+
 private:
 	virtual bool handle_channel_message( const std::string& user, const std::string& message );
 	virtual bool handle_private_message( const std::string& user, const std::string& message );

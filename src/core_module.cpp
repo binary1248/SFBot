@@ -13,24 +13,6 @@ std::vector<std::string> operators = { "binary1248" };
 // Settings
 ////////////////////////////////////////////////////////////////////////////////
 
-bool contains( const std::string& haystack, const std::string& needle ) {
-	auto pos = haystack.find( needle );
-
-	if( pos == haystack.npos ) {
-		return false;
-	}
-
-	if( ( pos > 0 ) && haystack[pos - 1] != ' ' ) {
-		return false;
-	}
-
-	if( ( pos + needle.length() < haystack.length() ) && haystack[pos + needle.length() + 1] != ' ' ) {
-		return false;
-	}
-
-	return true;
-}
-
 }
 
 core::core( bool& quit, std::chrono::milliseconds tick_time, std::chrono::milliseconds send, unsigned int queue, unsigned int cps ) :

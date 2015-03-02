@@ -1,7 +1,10 @@
 #include <module.hpp>
 #include <SFNUL.hpp>
-#include <tuple>
 #include <unordered_map>
+#include <sstream>
+#include <iomanip>
+#include <cctype>
+#include <tuple>
 
 namespace {
 
@@ -162,6 +165,44 @@ std::future<std::string> module::http_get( const std::string& host, unsigned sho
 	instance->requests.emplace_back( std::make_tuple( std::move( request ), host, port, std::move( promise ) ) );
 
 	return future;
+}
+
+bool module::contains( std::string haystack, const std::string& needle ) {
+	haystack.insert( 0, " " );
+	haystack += ' ';
+	auto pos = haystack.find( needle );
+
+	if( pos == haystack.npos ) {
+		return false;
+	}
+
+	if( haystack[pos - 1] != ' ' ) {
+		return false;
+	}
+
+	if( haystack[pos + needle.length()] != ' ' ) {
+		return false;
+	}
+
+	return true;
+}
+
+std::string module::url_encode( const std::string& str ) {
+	std::ostringstream sstr;
+
+	sstr.fill( '0' );
+	sstr << std::hex;
+
+	for( auto c : str ) {
+		if( std::isalnum( c ) ) {
+			sstr << c;
+		}
+		else {
+			sstr << '%' << std::setw( 2 ) << ( static_cast<int>( c ) & 0xff );
+		}
+	}
+
+	return sstr.str();
 }
 
 bool module::handle_channel_message( const std::string& /*user*/, const std::string& /*message*/ ) {

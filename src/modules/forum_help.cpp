@@ -13,24 +13,6 @@ const static auto poll_interval = std::chrono::seconds( 30 );
 // Settings
 ////////////////////////////////////////////////////////////////////////////////
 
-bool contains( const std::string& haystack, const std::string& needle ) {
-	auto pos = haystack.find( needle );
-
-	if( pos == haystack.npos ) {
-		return false;
-	}
-
-	if( ( pos > 0 ) && haystack[pos - 1] != ' ' ) {
-		return false;
-	}
-
-	if( ( pos + needle.length() < haystack.length() ) && haystack[pos + needle.length() + 1] != ' ' ) {
-		return false;
-	}
-
-	return true;
-}
-
 }
 
 bool forum_help::handle_channel_message( const std::string& /*user*/, const std::string& message ) {
@@ -80,10 +62,8 @@ void forum_help::handle_forum() {
 
 			if( id_end != body.npos ) {
 				body = body.substr( 0, id_end );
-				std::stringstream sstr( body );
 
-				auto id = 0.0;
-				sstr >> id;
+				auto id = std::stod( body );
 				auto int_id = static_cast<int>( id );
 
 				if( int_id > m_last_thread_id ) {

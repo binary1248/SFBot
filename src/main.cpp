@@ -14,9 +14,9 @@ std::string server_address = "irc.boxbox.org";
 std::string channel_name = "sfgui";
 std::string bot_name = "SFBot";
 const auto tick_interval = std::chrono::milliseconds( 100 ); // Interval at which bot ticks
-const auto send_interval = std::chrono::milliseconds( 500 ); // Minimum time between 2 message sends
+const auto send_interval = std::chrono::milliseconds( 1000 ); // Minimum time between successive message sends
 const auto send_queue_threshold = 10u; // Maximum number of queued messages
-const auto words_per_minute = 150u; // Looks human right?
+const auto words_per_minute = 1500u; // Looks human right?
 const auto characters_per_second = words_per_minute * 5u / 60u;
 ////////////////////////////////////////////////////////////////////////////////
 // Settings
@@ -97,7 +97,7 @@ int main()
 		auto modules = module::instantiate_all();
 		auto previous_tick = std::chrono::system_clock::now();
 
-		while( !quit && !irc_socket->RemoteHasShutdown() ) {
+		while( !irc_socket->RemoteHasShutdown() && !( quit && messages.empty() ) ) {
 			auto start_time = std::chrono::system_clock::now();
 			auto delta = std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::system_clock::now() - previous_tick );
 			previous_tick = std::chrono::system_clock::now();
@@ -117,7 +117,7 @@ int main()
 
 				if( line.size() ) {
 					if( !line.empty() ) {
-						std::stringstream sstr( line );
+						std::istringstream sstr( line );
 
 						std::string token;
 						sstr >> token;
@@ -166,17 +166,24 @@ int main()
 						else if( command == "PRIVMSG" ) {
 							std::string target;
 							std::string message;
-							sstr >> target >> message;
+							sstr >> target;
+
+							std::string word;
+							while( sstr >> word ) {
+								message += word + " ";
+							}
 
 							if( !target.empty() && !message.empty() && ( message[0] == ':' ) ) {
 								message.erase( 0, 1 );
 
 								if( target == ( "#" + channel_name ) ) {
 									// Channel message
+									std::cout << name << ": " << message << "\n";
 									module::receive_channel_message( name, message );
 								}
 								else if( target == bot_name ) {
 									// Private message
+									std::cout << name << " (whisper): " << message << "\n";
 									module::receive_private_message( name, message );
 								}
 							}

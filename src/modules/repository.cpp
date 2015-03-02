@@ -3,8 +3,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <iomanip>
-#include <cctype>
 
 namespace {
 
@@ -21,42 +19,6 @@ const static auto poll_interval = std::chrono::seconds( 30 );
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string secret;
-
-bool contains( const std::string& haystack, const std::string& needle ) {
-	auto pos = haystack.find( needle );
-
-	if( pos == haystack.npos ) {
-		return false;
-	}
-
-	if( ( pos > 0 ) && haystack[pos - 1] != ' ' ) {
-		return false;
-	}
-
-	if( ( pos + needle.length() < haystack.length() ) && haystack[pos + needle.length() + 1] != ' ' ) {
-		return false;
-	}
-
-	return true;
-}
-
-std::string url_encode( const std::string& str ) {
-	std::ostringstream sstr;
-
-	sstr.fill( '0' );
-	sstr << std::hex;
-
-	for( auto c : str ) {
-		if( std::isalnum( c ) ) {
-			sstr << c;
-		}
-		else {
-			sstr << '%' << std::setw( 2 ) << ( static_cast<int>( c ) & 0xff );
-		}
-	}
-
-	return sstr.str();
-}
 
 const std::string& get_secret() {
 	if( secret.empty() ) {
@@ -111,7 +73,7 @@ repository::repository( const std::string& uri ) :
 }
 
 bool repository::handle_channel_message( const std::string& /*user*/, const std::string& message ) {
-	if( ( message == "!repos" ) || contains( message, "!repo " + m_uri ) ) {
+	if( contains( message, "!repos" ) || contains( message, "!repo " + m_uri ) ) {
 		auto delta = m_lead_star_count - m_star_count;
 		delta = std::max( 0, delta );
 		std::string reply;
