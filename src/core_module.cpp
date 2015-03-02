@@ -33,8 +33,12 @@ bool contains( const std::string& haystack, const std::string& needle ) {
 
 }
 
-core::core( bool& quit ) :
-	m_quit( quit )
+core::core( bool& quit, std::chrono::milliseconds tick_time, std::chrono::milliseconds send, unsigned int queue, unsigned int cps ) :
+	m_quit( quit ),
+	m_tick( tick_time ),
+	m_send( send ),
+	m_queue( queue ),
+	m_cps( cps )
 {
 
 }
@@ -65,6 +69,17 @@ bool core::handle_channel_message( const std::string& user, const std::string& m
 		send_channel_message( commands );
 		return true;
 	}
+	else if( contains( message, "!config" ) ) {
+		std::string config;
+
+		config += "Tick interval: " + std::to_string( m_tick.count() ) + "ms, ";
+		config += "Send interval: " + std::to_string( m_send.count() ) + "ms, ";
+		config += "Queue size: " + std::to_string( m_queue ) + ", ";
+		config += "Characters per second: " + std::to_string( m_cps );
+
+		send_channel_message( config );
+		return true;
+	}
 
 	return false;
 }
@@ -93,6 +108,17 @@ bool core::handle_private_message( const std::string& user, const std::string& m
 		}
 
 		send_private_message( user, commands );
+		return true;
+	}
+	else if( contains( message, "!config" ) ) {
+		std::string config;
+
+		config += "Tick interval: " + std::to_string( m_tick.count() ) + "ms, ";
+		config += "Send interval: " + std::to_string( m_send.count() ) + "ms, ";
+		config += "Queue size: " + std::to_string( m_queue ) + ", ";
+		config += "Characters per second: " + std::to_string( m_cps );
+
+		send_private_message( user, config );
 		return true;
 	}
 

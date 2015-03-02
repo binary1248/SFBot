@@ -1,7 +1,10 @@
 #include <repository.hpp>
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
+#include <cctype>
 
 namespace {
 
@@ -35,6 +38,24 @@ bool contains( const std::string& haystack, const std::string& needle ) {
 	}
 
 	return true;
+}
+
+std::string url_encode( const std::string& str ) {
+	std::ostringstream sstr;
+
+	sstr.fill( '0' );
+	sstr << std::hex;
+
+	for( auto c : str ) {
+		if( std::isalnum( c ) ) {
+			sstr << c;
+		}
+		else {
+			sstr << '%' << std::setw( 2 ) << ( static_cast<int>( c ) & 0xff );
+		}
+	}
+
+	return sstr.str();
 }
 
 const std::string& get_secret() {
@@ -91,8 +112,10 @@ repository::repository( const std::string& uri ) :
 
 bool repository::handle_channel_message( const std::string& /*user*/, const std::string& message ) {
 	if( ( message == "!repos" ) || contains( message, "!repo " + m_uri ) ) {
+		auto delta = m_lead_star_count - m_star_count;
+		delta = std::max( 0, delta );
 		std::string reply;
-		reply = m_uri + ": " + std::to_string( m_star_count ) + " stars";
+		reply = m_uri + ": " + std::to_string( m_star_count ) + " stars, next: " + m_lead_repository + ": " + std::to_string( m_lead_star_count ) + " stars, (" + ( delta > 0 ? "+" : "" ) + std::to_string( delta ) + ")";
 		send_channel_message( reply );
 		reply = m_uri + ": Newest stargazer: " + m_newest_stargazer;
 		send_channel_message( reply );
@@ -104,11 +127,120 @@ bool repository::handle_channel_message( const std::string& /*user*/, const std:
 void repository::handle_tick( const std::chrono::milliseconds& elapsed ) {
 	m_time_to_query -= elapsed;
 
-	if( m_current_query.valid() && ( m_current_query.wait_for( std::chrono::milliseconds( 0 ) ) == std::future_status::ready ) ) {
-		auto body = m_current_query.get();
+	handle_repository();
+	handle_stargazer();
+	handle_lead();
+
+	poll_repository();
+}
+
+void repository::poll_repository() {
+	if( m_time_to_query < std::chrono::milliseconds( 0 ) ) {
+		if( m_current_repository_query.valid() ) {
+			std::cerr << "repository request still not complete" << "\n";
+		}
+		else {
+			m_current_repository_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "?" + get_secret(), true );
+			m_time_to_query = poll_interval;
+		}
+	}
+}
+
+void repository::handle_repository() {
+	if( m_current_repository_query.valid() && ( m_current_repository_query.wait_for( std::chrono::milliseconds( 0 ) ) == std::future_status::ready ) ) {
+		auto body = m_current_repository_query.get();
 
 		auto stargazers_pos = body.find( "\"stargazers_count\":" );
+
+		if( stargazers_pos == body.npos ) {
+			return;
+		}
+
+		{
+			auto stargazers_start_pos = stargazers_pos + 19;
+			auto stargazers_end_pos = body.find( ",", stargazers_start_pos );
+			auto stargazers = body.substr( stargazers_start_pos, stargazers_end_pos - stargazers_start_pos );
+
+			auto star_count = std::stoi( stargazers );
+
+			if( m_star_count && ( m_star_count != star_count ) ) {
+				std::string message;
+				message += m_uri + ": " + std::to_string( m_star_count ) + " -> " + std::to_string( star_count ) + " stars";
+				send_channel_message( message );
+			}
+
+			m_star_count = star_count;
+
+			if( m_current_stargazer_query.valid() ) {
+				std::cerr << "stargazer request still not complete" << "\n";
+			}
+			else {
+				m_current_stargazer_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "/stargazers?" + get_secret() + "&per_page=1&page=" + std::to_string( m_star_count ), true );
+			}
+		}
+
+		auto language_pos = body.find( "\"language\":" );
+
+		if( m_star_count && ( language_pos != body.npos ) ) {
+			auto language_start_pos = language_pos + 11;
+			auto language_end_pos = body.find( ",", language_start_pos );
+			auto language = body.substr( language_start_pos, language_end_pos - language_start_pos );
+
+			language.erase( std::remove( std::begin( language ), std::end( language ), '"' ), std::end( language ) );
+			auto encoded_language = url_encode( language );
+
+			if( m_current_lead_query.valid() ) {
+				std::cerr << "lead request still not complete" << "\n";
+			}
+			else {
+				m_current_lead_query = http_get( "api.github.com", 443, "/search/repositories?q=language:" + encoded_language + "+stars:>" + std::to_string( m_star_count ) + "&sort=stars&order=asc&page=1&per_page=1", true );
+			}
+		}
+	}
+}
+
+void repository::handle_stargazer() {
+	if( m_current_stargazer_query.valid() && ( m_current_stargazer_query.wait_for( std::chrono::milliseconds( 0 ) ) == std::future_status::ready ) ) {
+		auto body = m_current_stargazer_query.get();
+
 		auto login_pos = body.rfind( "\"login\":" );
+
+		if( login_pos != body.npos ) {
+			auto login_start_pos = login_pos + 9;
+			auto login_end_pos = body.find( "\"", login_start_pos );
+			auto login = body.substr( login_start_pos, login_end_pos - login_start_pos );
+
+			if( !m_newest_stargazer.empty() && ( m_newest_stargazer != login ) ) {
+				std::string message;
+				message += m_uri + ": Newest stargazer: " + login;
+				send_channel_message( message );
+			}
+
+			m_newest_stargazer = login;
+		}
+	}
+}
+
+void repository::handle_lead() {
+	if( m_current_lead_query.valid() && ( m_current_lead_query.wait_for( std::chrono::milliseconds( 0 ) ) == std::future_status::ready ) ) {
+		auto body = m_current_lead_query.get();
+
+		auto fullname_pos = body.find( "\"full_name\":" );
+
+		if( fullname_pos == body.npos ) {
+			return;
+		}
+
+		auto fullname_start_pos = fullname_pos + 12;
+		auto fullname_end_pos = body.find( ",", fullname_start_pos );
+		auto fullname = body.substr( fullname_start_pos, fullname_end_pos - fullname_start_pos );
+
+		fullname.erase( std::remove( std::begin( fullname ), std::end( fullname ), '"' ), std::end( fullname ) );
+
+		m_lead_repository = fullname;
+
+		auto stargazers_pos = body.find( "\"stargazers_count\":" );
+
 		if( stargazers_pos != body.npos ) {
 			auto stargazers_start_pos = stargazers_pos + 19;
 			auto stargazers_end_pos = body.find( ",", stargazers_start_pos );
@@ -116,52 +248,14 @@ void repository::handle_tick( const std::chrono::milliseconds& elapsed ) {
 
 			auto star_count = std::stoi( stargazers );
 
-			if( !m_star_count ) {
-				m_star_count = star_count;
-
-				m_current_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "/stargazers?" + get_secret() + "&per_page=1&page=" + std::to_string( m_star_count ), true );
-				m_time_to_query = poll_interval;
-			}
-			else if( m_star_count != star_count ) {
+			if( m_lead_star_count && ( m_lead_star_count != star_count ) ) {
+				auto delta = star_count - m_star_count;
 				std::string message;
-				message += m_uri + ": " + std::to_string( m_star_count ) + " -> " + std::to_string( star_count ) + " stars";
+				message += m_uri + ": " + std::to_string( m_star_count ) + " stars, next: " + m_lead_repository + ": " + std::to_string( star_count ) + " stars, (" + ( delta > 0 ? "+" : "" ) + std::to_string( delta ) + ")";
 				send_channel_message( message );
-				m_star_count = star_count;
-
-				m_current_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "/stargazers?" + get_secret() + "&per_page=1&page=" + std::to_string( m_star_count ), true );
-				m_time_to_query = poll_interval;
 			}
+
+			m_lead_star_count = star_count;
 		}
-		else if( login_pos != body.npos ) {
-			auto login_start_pos = login_pos + 9;
-			auto login_end_pos = body.find( "\"", login_start_pos );
-			auto login = body.substr( login_start_pos, login_end_pos - login_start_pos );
-
-			if( m_newest_stargazer.empty() ) {
-				m_newest_stargazer = login;
-
-				m_current_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "?" + get_secret(), true );
-				m_time_to_query = poll_interval;
-			}
-			else if( !login.empty() ) {
-				std::string message;
-				message += m_uri + ": Newest stargazer: " + login;
-				send_channel_message( message );
-				m_newest_stargazer = login;
-
-				m_current_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "?" + get_secret(), true );
-				m_time_to_query = poll_interval;
-			}
-		}
-	}
-
-	if( m_time_to_query < std::chrono::milliseconds( 0 ) ) {
-		if( m_current_query.valid() ) {
-			std::cerr << "repository request still not complete" << "\n";
-			return;
-		}
-
-		m_current_query = http_get( "api.github.com", 443, "/repos/" + m_uri + "?" + get_secret(), true );
-		m_time_to_query = poll_interval;
 	}
 }

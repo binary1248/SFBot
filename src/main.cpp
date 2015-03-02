@@ -13,7 +13,11 @@ namespace {
 std::string server_address = "irc.boxbox.org";
 std::string channel_name = "sfgui";
 std::string bot_name = "SFBot";
-const auto tick_interval = std::chrono::milliseconds( 100 );
+const auto tick_interval = std::chrono::milliseconds( 100 ); // Interval at which bot ticks
+const auto send_interval = std::chrono::milliseconds( 500 ); // Minimum time between 2 message sends
+const auto send_queue_threshold = 10u; // Maximum number of queued messages
+const auto words_per_minute = 150u; // Looks human right?
+const auto characters_per_second = words_per_minute * 5u / 60u;
 ////////////////////////////////////////////////////////////////////////////////
 // Settings
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +26,8 @@ const auto tick_interval = std::chrono::milliseconds( 100 );
 
 int main()
 {
+	bool quit = false;
+
 	auto irc_socket = sfn::TcpSocket::Create();
 
 	sfn::Start();
@@ -35,18 +41,50 @@ int main()
 
 	irc_socket->Connect( sfn::Endpoint{ addresses.front(), 6667 } );
 
-	auto send_message = [&irc_socket]( const std::string& message ) {
+	std::deque<std::pair<std::string, std::chrono::milliseconds>> messages;
+
+	auto send_rate_limited_message = [&messages]( const std::string& message ) {
 		auto line = message + "\r\n";
-		irc_socket->Send( line.c_str(), line.length() );
+
+		if( messages.size() >= send_queue_threshold ) {
+			std::cout << "Send threshold exceeded, flushing queue.\n";
+			line = "PRIVMSG #" + channel_name + " :" + "Send threshold (" + std::to_string( send_queue_threshold ) + ") exceeded, flushing queue.\n";
+			messages.clear();
+		}
+
+		auto characters = line.length();
+		auto time_required = std::chrono::milliseconds( characters * 1000 / characters_per_second );
+		time_required = std::max( time_required, send_interval );
+		messages.push_back( std::make_pair( line, time_required ) );
+	};
+
+	auto send_message = [&messages]( const std::string& message ) {
+		auto line = message + "\r\n";
+		messages.push_back( std::make_pair( line, std::chrono::milliseconds( 0 ) ) );
+	};
+
+	auto dequeue_message = [&irc_socket, &messages]( const std::chrono::milliseconds& elapsed ) {
+		if( messages.empty() ) {
+			return;
+		}
+
+		messages.front().second -= elapsed;
+
+		if( messages.front().second >= std::chrono::milliseconds( 0 ) ) {
+			return;
+		}
+
+		irc_socket->Send( messages.front().first.c_str(), messages.front().first.length() );
+		messages.pop_front();
 	};
 
 	module::register_send_channel_message_handler( [&]( const std::string& message ) {
-		send_message( "PRIVMSG #" + channel_name + " :" + message );
+		send_rate_limited_message( "PRIVMSG #" + channel_name + " :" + message );
 		std::cout << "Bot: " << "PRIVMSG #" + channel_name + " :" + message << "\n";
 	} );
 
 	module::register_send_private_message_handler( [&]( const std::string& user, const std::string& message ) {
-		send_message( "PRIVMSG " + user + " :" + message );
+		send_rate_limited_message( "PRIVMSG " + user + " :" + message );
 		std::cout << "Bot: " << "PRIVMSG " + user + " :" + message << "\n";
 	} );
 
@@ -54,16 +92,17 @@ int main()
 	send_message( "USER " + bot_name + " 0 * :" + bot_name );
 
 	{
-		bool quit = false;
-		register_module<core>( { "!version", "!shutdown", "!commands" }, quit );
+		register_module<core>( { "!version", "!shutdown", "!commands", "!config" }, quit, tick_interval, send_interval, send_queue_threshold, characters_per_second );
 
 		auto modules = module::instantiate_all();
 		auto previous_tick = std::chrono::system_clock::now();
 
 		while( !quit && !irc_socket->RemoteHasShutdown() ) {
 			auto start_time = std::chrono::system_clock::now();
-			module::tick( std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::system_clock::now() - previous_tick ) );
+			auto delta = std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::system_clock::now() - previous_tick );
 			previous_tick = std::chrono::system_clock::now();
+			module::tick( delta );
+			dequeue_message( delta );
 
 			static std::string recv_string;
 			std::array<char, 1024> recv_data;

@@ -1,6 +1,7 @@
 #include <module.hpp>
 #include <SFNUL.hpp>
 #include <tuple>
+#include <unordered_map>
 
 namespace {
 
@@ -8,6 +9,7 @@ struct impl{
 
 sfn::HTTPClient http_client;
 std::vector<std::tuple<sfn::HTTPRequest, std::string, unsigned short, std::promise<std::string>>> requests;
+std::unordered_map<std::string, std::pair<std::string, std::string>> cache;
 
 };
 
@@ -92,7 +94,23 @@ void module::tick( const std::chrono::milliseconds& elapsed ) {
 
 			if( response.IsComplete() ) {
 				auto& promise = std::get<3>( *iter );
-				promise.set_value( response.GetBody() );
+
+				auto identifier = host + ':' + std::to_string( port ) + request.GetURI();
+				auto cache_iter = instance->cache.find( identifier );
+
+				if( ( response.GetStatus() == "Not Modified" ) && ( cache_iter != std::end( instance->cache ) ) ) {
+					promise.set_value( cache_iter->second.second );
+				}
+				else {
+					auto etag = response.GetHeaderValue( "ETag" );
+					auto body = response.GetBody();
+
+					promise.set_value( body );
+
+					auto& cache_contents = instance->cache[identifier];
+					cache_contents.first = etag;
+					cache_contents.second = std::move( body );
+				}
 
 				iter = instance->requests.erase( iter );
 				continue;
@@ -126,6 +144,15 @@ std::future<std::string> module::http_get( const std::string& host, unsigned sho
 	request.SetHeaderValue( "Host", host );
 	request.SetHeaderValue( "User-Agent", "SFBot" );
 	request.SetURI( uri );
+
+	if( instance ) {
+		auto identifier = host + ':' + std::to_string( port ) + uri;
+		auto cache_iter = instance->cache.find( identifier );
+
+		if( cache_iter != std::end( instance->cache ) ) {
+			request.SetHeaderValue( "If-None-Match", cache_iter->second.first );
+		}
+	}
 
 	instance->http_client.SendRequest( request, host, port, secure );
 

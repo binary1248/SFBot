@@ -43,15 +43,33 @@ bool forum_help::handle_channel_message( const std::string& /*user*/, const std:
 		return true;
 	}
 
-
 	return false;
 }
 
 void forum_help::handle_tick( const std::chrono::milliseconds& elapsed ) {
 	m_time_to_query -= elapsed;
 
-	if( m_current_query.valid() && ( m_current_query.wait_for( std::chrono::milliseconds( 0 ) ) == std::future_status::ready ) ) {
-		auto body = m_current_query.get();
+	handle_forum();
+
+	poll_forum();
+}
+
+void forum_help::poll_forum() {
+	if( m_time_to_query < std::chrono::milliseconds( 0 ) ) {
+		if( m_current_forum_query.valid() ) {
+			std::cerr << "forum_help request still not complete" << "\n";
+			return;
+		}
+
+		m_current_forum_query = http_get( "en.sfml-dev.org", 80, "/forums/index.php?type=rdf;action=.xml;sa=news;limit=1;c=3" );
+
+		m_time_to_query = poll_interval;
+	}
+}
+
+void forum_help::handle_forum() {
+	if( m_current_forum_query.valid() && ( m_current_forum_query.wait_for( std::chrono::milliseconds( 0 ) ) == std::future_status::ready ) ) {
+		auto body = m_current_forum_query.get();
 		std::string head( "rdf:resource=\"http://en.sfml-dev.org/forums/index.php?topic=" );
 		auto id_start = body.find( head );
 
@@ -70,12 +88,10 @@ void forum_help::handle_tick( const std::chrono::milliseconds& elapsed ) {
 
 				if( int_id > m_last_thread_id ) {
 					if( m_last_thread_id ) {
-						std::string message = "New help request detected on SFML forum at: ";
-
+						std::string message;
+						message += "New help request detected on SFML forum at: ";
 						message += "http://en.sfml-dev.org/forums/index.php?topic=";
 						message += body;
-						message += " Don't know how to compute a reply yet :(";
-
 						send_channel_message( message );
 					}
 
@@ -83,16 +99,5 @@ void forum_help::handle_tick( const std::chrono::milliseconds& elapsed ) {
 				}
 			}
 		}
-	}
-
-	if( m_time_to_query < std::chrono::milliseconds( 0 ) ) {
-		if( m_current_query.valid() ) {
-			std::cerr << "forum_help request still not complete" << "\n";
-			return;
-		}
-
-		m_current_query = http_get( "en.sfml-dev.org", 80, "/forums/index.php?type=rdf;action=.xml;sa=news;limit=1;c=3" );
-
-		m_time_to_query = poll_interval;
 	}
 }
