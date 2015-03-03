@@ -19,12 +19,11 @@ std::unordered_map<std::string, std::pair<std::string, std::string>> cache;
 std::unique_ptr<impl> instance;
 int ref_count = 0;
 
-std::vector<std::function<std::unique_ptr<module>(void)>> function_constructors;
-std::vector<std::unique_ptr<module>>* functions;
 
 std::function<void(const std::string&)> send_channel_message_handler;
 std::function<void(const std::string&, const std::string&)> send_private_message_handler;
 
+std::vector<module*> modules;
 std::vector<std::string> command_list;
 
 }
@@ -45,28 +44,17 @@ module::~module() {
 	}
 }
 
-std::unique_ptr<std::vector<std::unique_ptr<module>>> module::instantiate_all() {
-	auto unique_functions = std::unique_ptr<std::vector<std::unique_ptr<module>>>( new std::vector<std::unique_ptr<module>> );
-
-	for( const auto& f : function_constructors ) {
-		unique_functions->emplace_back( f() );
-	}
-
-	functions = unique_functions.get();
-	return unique_functions;
-}
-
 void module::receive_channel_message( const std::string& user, const std::string& message ) {
-	for( auto& f : *functions ) {
-		if( f->handle_channel_message( user, message ) ) {
+	for( auto m : modules ) {
+		if( m->handle_channel_message( user, message ) ) {
 			return;
 		}
 	}
 }
 
 void module::receive_private_message( const std::string& user, const std::string& message ) {
-	for( auto& f : *functions ) {
-		if( f->handle_private_message( user, message ) ) {
+	for( auto m : modules ) {
+		if( m->handle_private_message( user, message ) ) {
 			return;
 		}
 	}
@@ -123,8 +111,8 @@ void module::tick( const std::chrono::milliseconds& elapsed ) {
 		}
 	}
 
-	for( auto& f : *functions ) {
-		f->handle_tick( elapsed );
+	for( auto m : modules ) {
+		m->handle_tick( elapsed );
 	}
 }
 
@@ -216,8 +204,8 @@ bool module::handle_private_message( const std::string& /*user*/, const std::str
 void module::handle_tick( const std::chrono::milliseconds& /*elapsed*/ ) {
 }
 
-void module::add_function_constructor( std::function<std::unique_ptr<module>(void)> constructor ) {
-	function_constructors.push_back( std::move( constructor ) );
+void module::add_module( module* the_module ) {
+	modules.push_back( the_module );
 }
 
 void module::add_commands( std::initializer_list<std::string> commands ) {

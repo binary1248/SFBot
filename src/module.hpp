@@ -25,6 +25,8 @@ public:
 	static void register_send_channel_message_handler( std::function<void(const std::string&)> handler );
 	static void register_send_private_message_handler( std::function<void(const std::string&, const std::string&)> handler );
 
+	static void add_module( module* the_module );
+
 	static void add_commands( std::initializer_list<std::string> commands );
 	static const std::vector<std::string>& get_commands();
 

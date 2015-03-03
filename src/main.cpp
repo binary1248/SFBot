@@ -1,3 +1,13 @@
+////////////////////////////////////////////////////////////////////////////////
+// Module headers
+////////////////////////////////////////////////////////////////////////////////
+#include <modules/social.hpp>
+#include <modules/forum_help.hpp>
+#include <modules/repository.hpp>
+////////////////////////////////////////////////////////////////////////////////
+// Module headers
+////////////////////////////////////////////////////////////////////////////////
+
 #include <module.hpp>
 #include <core_module.hpp>
 #include <SFNUL.hpp>
@@ -92,9 +102,34 @@ int main()
 	send_message( "USER " + bot_name + " 0 * :" + bot_name );
 
 	{
-		register_module<core>( { "!version", "!shutdown", "!commands", "!config" }, quit, tick_interval, send_interval, send_queue_threshold, characters_per_second );
+////////////////////////////////////////////////////////////////////////////////
+// Modules
+////////////////////////////////////////////////////////////////////////////////
+		core core_module( quit, tick_interval, send_interval, send_queue_threshold, characters_per_second );
+		module::add_module( &core_module );
+		module::add_commands( { "!version", "!shutdown", "!commands", "!config" } );
 
-		auto modules = module::instantiate_all();
+		social social_module;
+		module::add_module( &social_module );
+		module::add_commands( { "!hi" } );
+
+		forum_help forum_help_module;
+		module::add_module( &forum_help_module );
+		module::add_commands( { "!helpforum" } );
+
+		repository repository_module_sfml( "LaurentGomila/SFML" );
+		module::add_module( &repository_module_sfml );
+		repository repository_module_sfgui( "TankOs/SFGUI" );
+		module::add_module( &repository_module_sfgui );
+		repository repository_module_sfnul( "binary1248/SFNUL" );
+		module::add_module( &repository_module_sfnul );
+		repository repository_module_sfbot( "binary1248/SFBot" );
+		module::add_module( &repository_module_sfbot );
+		module::add_commands( { "!repo", "!repos" } );
+////////////////////////////////////////////////////////////////////////////////
+// Modules
+////////////////////////////////////////////////////////////////////////////////
+
 		auto previous_tick = std::chrono::system_clock::now();
 
 		while( !irc_socket->RemoteHasShutdown() && !( quit && messages.empty() ) ) {

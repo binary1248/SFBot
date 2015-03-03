@@ -45,7 +45,6 @@ if( APPLE )
 endif()
 
 set( GNUCXX_FLAGS "-Wall -Wextra -Wshadow -Wconversion -Wunused-parameter -Wno-long-long -Wunreachable-code -Wredundant-decls -Wcast-align -Wfloat-equal -Wformat=2 -Wmissing-declarations -Woverlength-strings -pedantic" )
-set( GNULD_FLAGS "" )
 
 if( SFBot_USE_STATIC_STD_LIBS )
 	if( MSVC )
@@ -56,6 +55,7 @@ if( SFBot_USE_STATIC_STD_LIBS )
 		endforeach()
 	elseif( CMAKE_COMPILER_IS_GNUCXX )
 		set( GNULD_FLAGS "-static -static-libgcc -static-libstdc++" )
+		set_target_properties( SFBot PROPERTIES LINK_FLAGS ${GNULD_FLAGS} )
 	endif()
 endif()
 
@@ -69,7 +69,6 @@ if( CMAKE_COMPILER_IS_GNUCXX )
 	endif()
 	
 	set_source_files_properties( ${SOURCES} PROPERTIES COMPILE_FLAGS ${GNUCXX_FLAGS} )
-	set_target_properties( SFBot PROPERTIES LINK_FLAGS ${GNULD_FLAGS} )
 endif()
 
 target_link_libraries( SFBot ${SFNUL_LIBRARY} ${SFNUL_DEPENDENCIES} )
