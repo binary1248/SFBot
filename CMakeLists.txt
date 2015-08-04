@@ -46,6 +46,8 @@ endif()
 
 set( GNUCXX_FLAGS "-Wall -Wextra -Wshadow -Wconversion -Wunused-parameter -Wno-long-long -Wunreachable-code -Wredundant-decls -Wcast-align -Wfloat-equal -Wformat=2 -Wmissing-declarations -Woverlength-strings -pedantic" )
 
+add_executable( SFBot ${SOURCES} )
+
 if( SFBot_USE_STATIC_STD_LIBS )
 	if( MSVC )
 		foreach( flag CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO )
@@ -58,8 +60,6 @@ if( SFBot_USE_STATIC_STD_LIBS )
 		set_target_properties( SFBot PROPERTIES LINK_FLAGS ${GNULD_FLAGS} )
 	endif()
 endif()
-
-add_executable( SFBot ${SOURCES} )
 
 if( CMAKE_COMPILER_IS_GNUCXX )
 	if( CMAKE_CXX_COMPILER MATCHES ".*clang[+][+]" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )

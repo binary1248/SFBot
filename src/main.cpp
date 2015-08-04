@@ -117,7 +117,7 @@ int main()
 		module::add_module( &forum_help_module );
 		module::add_commands( { "!helpforum" } );
 
-		repository repository_module_sfml( "LaurentGomila/SFML" );
+		repository repository_module_sfml( "SFML/SFML" );
 		module::add_module( &repository_module_sfml );
 		repository repository_module_sfgui( "TankOs/SFGUI" );
 		module::add_module( &repository_module_sfgui );
